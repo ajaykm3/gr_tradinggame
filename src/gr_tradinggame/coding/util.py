@@ -36,6 +36,6 @@ def get_url(force_restart=False):
         r = requests.get(NGROK_API)
         tunnels = r.json()["tunnels"]
         public_url = tunnels[0]["public_url"]
-        return public_url.replace("https://", "").replace("http://", "")
+        return public_url.split('//')[1].split('.ngrok-free.app')[0]
     except Exception as e:
         raise RuntimeError("ngrok tunnel not available") from e

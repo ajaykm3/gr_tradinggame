@@ -70,5 +70,5 @@ class GameServer:
 
     def run(self, force_restart=False):
         server_id = get_url(force_restart)
-        print("Serving", server_id)
+        print('Serving', server_id)
         self.app.run(port=5000)
