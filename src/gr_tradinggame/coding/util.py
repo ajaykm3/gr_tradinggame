@@ -1,27 +1,41 @@
 import time
-import pyngrok
-from pyngrok import ngrok
 import subprocess
 import requests
+from pyngrok import ngrok, conf
 
+NGROK_API = "http://localhost:4040/api/tunnels"
 
-def get_url(token, force_restart):
-    def kill_and_restart():
-        subprocess.run(["pkill", "ngrok"])
-        ngrok.install_ngrok()
-        subprocess.Popen([pyngrok.conf.get_default().ngrok_path, 'http', '5000', '--authtoken', token], start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        time.sleep(5)
-
-    def try_get_url():
-        response = requests.get("http://localhost:4040/api/tunnels")
-        tunnels = response.json()['tunnels']
-        public_url = tunnels[0]['public_url']
-        return public_url.split('//')[1].split('.ngrok-free.app')[0]
-
-    if force_restart:
-        kill_and_restart()
+def _cleanup_local_tunnels():
     try:
-        return try_get_url()
+        r = requests.get(NGROK_API, timeout=1)
+        for t in r.json().get("tunnels", []):
+            ngrok.disconnect(t["public_url"])
     except Exception:
-        kill_and_restart()
-        return try_get_url()
+        pass
+
+def _ensure_ngrok_running():
+    try:
+        requests.get(NGROK_API, timeout=1)
+    except Exception:
+        ngrok.install_ngrok()
+        subprocess.Popen(
+            [conf.get_default().ngrok_path, "http", "5000"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        time.sleep(4)
+
+def get_url(force_restart=False):
+    if force_restart:
+        _cleanup_local_tunnels()
+
+    _ensure_ngrok_running()
+
+    try:
+        r = requests.get(NGROK_API)
+        tunnels = r.json()["tunnels"]
+        public_url = tunnels[0]["public_url"]
+        return public_url.replace("https://", "").replace("http://", "")
+    except Exception as e:
+        raise RuntimeError("ngrok tunnel not available") from e
