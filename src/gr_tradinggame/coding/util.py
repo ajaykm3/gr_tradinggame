@@ -9,7 +9,9 @@ def _cleanup_local_tunnels():
     try:
         r = requests.get(NGROK_API, timeout=1)
         for t in r.json().get("tunnels", []):
-            ngrok.disconnect(t["public_url"])
+            old_url = t["public_url"]
+            print(f"NOTE: disconnecting and cleaning up {old_url} before serving new session.")
+            ngrok.disconnect(old_url)
     except Exception:
         pass
 
@@ -24,7 +26,7 @@ def _ensure_ngrok_running():
             stderr=subprocess.DEVNULL,
             start_new_session=True,
         )
-        time.sleep(4)
+        time.sleep(5)
 
 def get_url(force_restart=False):
     if force_restart:
